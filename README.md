@@ -1,3 +1,6 @@
+本仓库基于element-desktop, 强制使用中文作为搜索索引
+
+---
 ![Build](https://github.com/vector-im/element-desktop/actions/workflows/build.yaml/badge.svg)
 ![Static Analysis](https://github.com/vector-im/element-desktop/actions/workflows/static_analysis.yaml/badge.svg)
 [![Weblate](https://translate.element.io/widgets/element-desktop/-/element-desktop/svg-badge.svg)](https://translate.element.io/engage/element-desktop/)
