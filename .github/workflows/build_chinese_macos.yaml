@@ -48,7 +48,7 @@ jobs:
               uses: svenstaro/upload-release-action@v2
               with:
                 file: ./dist/*.dmg
-                tag: ${{ steps.prepare.outputs.version }}
+                tag: v${{ steps.prepare.outputs.version }}-chinese
                 file_glob: true
                 overwrite: true
                 release_name: v${{ steps.prepare.outputs.version }} ${{steps.prepare.outputs.strDate}} 编译
