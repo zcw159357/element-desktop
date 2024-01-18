@@ -19,7 +19,7 @@ jobs:
         uses: ./.github/workflows/build_windows.yaml
         strategy:
             matrix:
-                arch: [x64, x86]
+                arch: [x64, ia32]
         with:
             arch: ${{ matrix.arch }}
 
@@ -41,7 +41,7 @@ jobs:
 
             - name: "Get modified files"
               id: changed_files
-              uses: tj-actions/changed-files@94549999469dbfa032becf298d95c87a14c34394 # v40
+              uses: tj-actions/changed-files@716b1e13042866565e00e85fd4ec490e186c4a2f # v41
               with:
                   files: |
                       dockerbuild/**
@@ -106,21 +106,26 @@ jobs:
                     - name: macOS Universal
                       os: macos
                       artifact: macos
-                      executable: "/Volumes/Element/Element.app/Contents/MacOS/Element"
-                      prepare_cmd: "hdiutil attach ./dist/*.dmg -mountpoint /Volumes/Element"
+                      executable: "/Users/runner/Applications/Element.app/Contents/MacOS/Element"
+                      # We need to mount the DMG and copy the app to the Applications folder as a mounted DMG is
+                      # read-only and thus would not allow us to override the fuses as is required for Playwright.
+                      prepare_cmd: |
+                          hdiutil attach ./dist/*.dmg -mountpoint /Volumes/Element &&
+                          rsync -a /Volumes/Element/Element.app ~/Applications/ &&
+                          hdiutil detach /Volumes/Element
                     - name: "Linux (amd64) (sqlcipher: system)"
                       os: ubuntu
                       artifact: linux-amd64-sqlcipher-system
-                      executable: "element-desktop"
+                      executable: "/opt/Element/element-desktop"
                       prepare_cmd: "sudo apt install ./dist/*.deb"
                     - name: "Linux (amd64) (sqlcipher: static)"
                       os: ubuntu
                       artifact: linux-amd64-sqlcipher-static
-                      executable: "element-desktop"
+                      executable: "/opt/Element/element-desktop"
                       prepare_cmd: "sudo apt install ./dist/*.deb"
                     - name: Windows (x86)
                       os: windows
-                      artifact: win-x86
+                      artifact: win-ia32
                       executable: "./dist/win-ia32-unpacked/Element.exe"
                     - name: Windows (x64)
                       os: windows
@@ -138,7 +143,7 @@ jobs:
             - name: Install Deps
               run: "yarn install --frozen-lockfile"
 
-            - uses: actions/download-artifact@v3
+            - uses: actions/download-artifact@v4
               with:
                   name: ${{ matrix.artifact }}
                   path: dist
@@ -147,18 +152,26 @@ jobs:
               run: ${{ matrix.prepare_cmd }}
               if: matrix.prepare_cmd
 
+            # We previously disabled the `EnableNodeCliInspectArguments` fuse, but Playwright requires
+            # it to be enabled to test Electron apps, so turn it back on.
+            - name: Set EnableNodeCliInspectArguments fuse enabled
+              run: $RUN_AS npx @electron/fuses write --app ${{ matrix.executable }} EnableNodeCliInspectArguments=on
+              shell: bash
+              env:
+                  # We need sudo on Linux as it is installed in /opt/
+                  RUN_AS: ${{ runner.os == 'Linux' && 'sudo' || '' }}
+
             - name: Run tests
               uses: coactions/setup-xvfb@b6b4fcfb9f5a895edadc3bc76318fae0ac17c8b3 # v1
               timeout-minutes: 5
               with:
-                  run: "yarn test"
+                  run: "yarn test ${{ runner.os != 'Linux' && '--ignore-snapshots' || '' }}"
               env:
                   ELEMENT_DESKTOP_EXECUTABLE: ${{ matrix.executable }}
 
-            - name: Upload Artifacts
+            - name: Upload HTML report
               uses: actions/upload-artifact@v3
-              if: always()
               with:
-                  name: ${{ matrix.artifact }}
-                  path: test_artifacts
-                  retention-days: 1
+                  name: ${{ matrix.artifact }}-test
+                  path: playwright-report
+                  retention-days: 14
