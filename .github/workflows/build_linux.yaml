@@ -38,6 +38,9 @@ jobs:
             - name: Install missing tools
               if: runner.environment == 'self-hosted'
               run: |
+                  # Sanity check that the arch is arm64 as we expect
+                  [[ $(uname -p) == "aarch64" ]] || exit 1
+
                   sudo apt-get -qq update
                   # curl for yarn download, git for tj-actions/changed-files, zstd for actions/cache
                   sudo apt-get install -y curl git zstd
@@ -116,7 +119,7 @@ jobs:
 
             # This allows contributors to test changes to the dockerbuild image within a pull request
             - name: Build docker image
-              uses: docker/build-push-action@15560696de535e4014efeff63c48f16952e52dd1 # v6
+              uses: docker/build-push-action@1a162644f9a7e87d8f4b053101d1d9a712edc18c # v6
               if: steps.changed_files.outputs.any_modified == 'true'
               with:
                   context: dockerbuild

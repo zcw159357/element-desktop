@@ -63,22 +63,22 @@ jobs:
                       os: ubuntu-latest
                       artifact: linux-amd64-sqlcipher-system
                       executable: "/opt/Element/element-desktop"
-                      prepare_cmd: "sudo apt install ./dist/*.deb"
+                      prepare_cmd: "sudo apt-get -qq update && sudo apt install ./dist/*.deb"
                     - name: "Linux (amd64) (sqlcipher: static)"
                       os: ubuntu-latest
                       artifact: linux-amd64-sqlcipher-static
                       executable: "/opt/Element/element-desktop"
-                      prepare_cmd: "sudo apt install ./dist/*.deb"
+                      prepare_cmd: "sudo apt-get -qq update && sudo apt install ./dist/*.deb"
                     - name: "Linux (arm64) (sqlcipher: system)"
                       os: dind-l-arm64
                       artifact: linux-arm64-sqlcipher-system
                       executable: "/opt/Element/element-desktop"
-                      prepare_cmd: "sudo apt install -y ./dist/*.deb"
+                      prepare_cmd: "sudo apt-get -qq update && sudo apt install -y ./dist/*.deb"
                     - name: "Linux (arm64) (sqlcipher: static)"
                       os: dind-l-arm64
                       artifact: linux-arm64-sqlcipher-static
                       executable: "/opt/Element/element-desktop"
-                      prepare_cmd: "sudo apt install -y ./dist/*.deb"
+                      prepare_cmd: "sudo apt-get -qq update && sudo apt install -y ./dist/*.deb"
                     - name: Windows (x86)
                       os: windows-latest
                       artifact: win-ia32
@@ -94,6 +94,9 @@ jobs:
             - name: Install Yarn
               if: runner.environment == 'self-hosted'
               run: |
+                  # Sanity check that the arch is arm64 as we expect
+                  [[ $(uname -p) == "aarch64" ]] || exit 1
+
                   sudo apt-get -qq update
                   sudo apt-get install -y curl
                   curl -fsSL --create-dirs -o $HOME/bin/yarn https://github.com/yarnpkg/yarn/releases/download/v1.22.19/yarn-1.22.19.js
@@ -127,6 +130,12 @@ jobs:
               env:
                   # We need sudo on Linux as it is installed in /opt/
                   RUN_AS: ${{ runner.os == 'Linux' && 'sudo' || '' }}
+
+            - name: Workaround macOS GHA permission issues
+              if: matrix.os == 'macos-latest'
+              run: |
+                  sqlite3 $HOME/Library/Application\ Support/com.apple.TCC/TCC.db "INSERT OR IGNORE INTO access VALUES ('kTCCServiceMicrophone','/usr/local/opt/runner/provisioner/provisioner',1,2,4,1,NULL,NULL,0,'UNUSED',NULL,0,1687786159,NULL,NULL,'UNUSED',1687786159);"
+                  sqlite3 $HOME/Library/Application\ Support/com.apple.TCC/TCC.db "INSERT OR IGNORE INTO access VALUES ('kTCCServiceMicrophone','/opt/off/opt/runner/provisioner/provisioner',1,2,4,1,NULL,NULL,0,'UNUSED',NULL,0,1687786159,NULL,NULL,'UNUSED',1687786159);"
 
             - name: Run tests
               uses: coactions/setup-xvfb@6b00cf1889f4e1d5a48635647013c0508128ee1a
